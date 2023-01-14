@@ -4,7 +4,7 @@
 
 import requests
 from bs4 import BeautifulSoup
-
+import pandas as pd
 
 tickers = ["AAPL", "AMZN", "META", "GOOG", "3988.HK"]
 income_statement_dict = {}
@@ -20,14 +20,26 @@ for ticker in tickers:
     tabl = soup.find_all("div", {"class" : "M(0) Whs(n) BdEnd Bdc($seperatorColor) D(itb)"})
 
     income_statement = {}
+    table_title = {}
 
     for t in tabl:
-        heading = t.find_all()
+        heading = t.find_all("div", {"class" : "D(tbr) C($primaryColor)"})
+        for top_row in heading:
+            table_title[top_row.get_text(separator="|").split("|")[0]] = top_row.get_text(separator="|").split("|")[1:]
 
         rows = t.find_all("div", {"class" : "D(tbr) fi-row Bgc($hoverBgColor):h"})
         for row in rows:
             try:
                 print(row.get_text(separator="|").split("|"))
-                income_statement[row.get_text(separator="|").split("|")[0]] = row.get_text(separator="|").split("|")[1]
+                income_statement[row.get_text(separator="|").split("|")[0]] = row.get_text(separator="|").split("|")[1:]
             except:
                 print("This row " + row.get_text() + " has no value")
+    
+    temp = pd.DataFrame(income_statement).T
+    temp.columns = table_title["Breakdown"]
+    income_statement_dict[ticker] = temp
+
+for ticker in tickers:
+    for col in income_statement_dict[ticker].columns:
+        income_statement_dict[ticker][col] = income_statement_dict[ticker][col].str.replace(',|-', '')
+        income_statement_dict[ticker][col] = pd.to_numeric(income_statement_dict[ticker][col], errors = 'coerce')
